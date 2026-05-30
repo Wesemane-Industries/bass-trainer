@@ -3,7 +3,7 @@ use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::symbols::Marker;
 use ratatui::text::{Line as TextLine, Span};
-use ratatui::widgets::canvas::{Canvas, Circle, Line as CanvasLine};
+use ratatui::widgets::canvas::{Canvas, Line as CanvasLine, Points};
 use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
 
 use crate::app::{App, DrillState, Screen};
@@ -15,9 +15,11 @@ use crate::pitch::PitchEvent;
 const STAFF_X_START: f64 = 18.0;
 const STAFF_X_END: f64 = 82.0;
 const STAFF_LINE_Y_BOTTOM: f64 = 12.0;
-const STAFF_LINE_Y_TOP: f64 = 28.0;
 const NOTEHEAD_X: f64 = 50.0;
-const NOTEHEAD_RADIUS: f64 = 1.6;
+const NOTEHEAD_A: f64 = 2.8;
+const NOTEHEAD_B: f64 = 1.4;
+const NOTEHEAD_TILT_DEG: f64 = -18.0;
+const NOTEHEAD_HOLE_FRAC: f64 = 0.45;
 
 const LETTER_STEP: [i32; 12] = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];
 const IS_SHARP: [bool; 12] = [
@@ -34,6 +36,30 @@ fn staff_step(sounding_midi: i32) -> (i32, bool) {
 
 fn staff_y(step: i32) -> f64 {
     2.0 * step as f64 - 24.0
+}
+
+fn whole_note_ring(cx: f64, cy: f64) -> Vec<(f64, f64)> {
+    let theta = NOTEHEAD_TILT_DEG.to_radians();
+    let (st, ct) = (theta.sin(), theta.cos());
+    let mut pts = Vec::with_capacity(256);
+    let nx = 28;
+    let ny = 14;
+    for ix in 0..=nx {
+        for iy in 0..=ny {
+            let fx = (ix as f64 / nx as f64) * 2.0 - 1.0;
+            let fy = (iy as f64 / ny as f64) * 2.0 - 1.0;
+            let r2 = fx * fx + fy * fy;
+            if r2 > 1.0 || r2 < NOTEHEAD_HOLE_FRAC * NOTEHEAD_HOLE_FRAC {
+                continue;
+            }
+            let x0 = fx * NOTEHEAD_A;
+            let y0 = fy * NOTEHEAD_B;
+            let x = x0 * ct - y0 * st + cx;
+            let y = x0 * st + y0 * ct + cy;
+            pts.push((x, y));
+        }
+    }
+    pts
 }
 
 pub fn render(frame: &mut Frame, app: &App) {
@@ -284,31 +310,27 @@ fn render_staff(frame: &mut Frame, area: Rect, target: Note) {
                 }
             }
 
-            ctx.draw(&Circle {
-                x: NOTEHEAD_X,
-                y: note_y,
-                radius: NOTEHEAD_RADIUS,
-                color: Color::White,
-            });
-            ctx.draw(&Circle {
-                x: NOTEHEAD_X,
-                y: note_y,
-                radius: NOTEHEAD_RADIUS * 0.6,
+            let ring = whole_note_ring(NOTEHEAD_X, note_y);
+            ctx.draw(&Points {
+                coords: &ring,
                 color: Color::White,
             });
 
             ctx.print(
-                STAFF_X_START - 8.0,
-                (STAFF_LINE_Y_BOTTOM + STAFF_LINE_Y_TOP) / 2.0,
-                TextLine::from(Span::styled("?:", Style::default().fg(Color::Yellow))),
+                STAFF_X_START - 6.0,
+                staff_y(24),
+                TextLine::from(Span::styled(
+                    "𝄢",
+                    Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                )),
             );
 
             if is_sharp {
                 ctx.print(
-                    NOTEHEAD_X - 6.0,
+                    NOTEHEAD_X - 3.5,
                     note_y,
                     TextLine::from(Span::styled(
-                        "#",
+                        "♯",
                         Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
                     )),
                 );
