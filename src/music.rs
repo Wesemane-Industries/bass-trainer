@@ -3,7 +3,7 @@ use std::fmt;
 
 pub const STRING_OPEN_MIDI: [i32; 4] = [28, 33, 38, 43];
 pub const STRING_LABELS: [&str; 4] = ["E", "A", "D", "G"];
-pub const MAX_FRET: i32 = 24;
+pub const MAX_FRET: i32 = 20;
 
 pub const SOUNDING_MIN_MIDI: i32 = 28;
 pub const SOUNDING_MAX_MIDI: i32 = STRING_OPEN_MIDI[3] + MAX_FRET;
