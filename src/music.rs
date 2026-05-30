@@ -43,6 +43,7 @@ impl fmt::Display for Note {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Mode {
+    Chromatic,
     Major,
     Minor,
 }
@@ -50,6 +51,7 @@ pub enum Mode {
 impl fmt::Display for Mode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
+            Mode::Chromatic => "chromatic",
             Mode::Major => "major",
             Mode::Minor => "minor",
         })
@@ -74,14 +76,18 @@ impl Key {
         NOTE_NAMES[self.root_pc as usize]
     }
 
-    pub fn scale_intervals(self) -> [i32; 7] {
+    pub fn scale_intervals(self) -> &'static [i32] {
         match self.mode {
-            Mode::Major => [0, 2, 4, 5, 7, 9, 11],
-            Mode::Minor => [0, 2, 3, 5, 7, 8, 10],
+            Mode::Chromatic => &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+            Mode::Major => &[0, 2, 4, 5, 7, 9, 11],
+            Mode::Minor => &[0, 2, 3, 5, 7, 8, 10],
         }
     }
 
     pub fn contains(self, note: Note) -> bool {
+        if matches!(self.mode, Mode::Chromatic) {
+            return true;
+        }
         let rel = (note.pitch_class() - self.root_pc).rem_euclid(12);
         self.scale_intervals().contains(&rel)
     }
@@ -94,7 +100,8 @@ impl Key {
     }
 
     pub fn all() -> Vec<Key> {
-        let mut out = Vec::with_capacity(24);
+        let mut out = Vec::with_capacity(25);
+        out.push(Key::new(0, Mode::Chromatic));
         for pc in 0..12 {
             out.push(Key::new(pc, Mode::Major));
         }
@@ -107,7 +114,10 @@ impl Key {
 
 impl fmt::Display for Key {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {}", self.root_name(), self.mode)
+        match self.mode {
+            Mode::Chromatic => f.write_str("All notes (chromatic)"),
+            _ => write!(f, "{} {}", self.root_name(), self.mode),
+        }
     }
 }
 
