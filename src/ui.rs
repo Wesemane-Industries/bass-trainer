@@ -62,6 +62,55 @@ fn whole_note_ring(cx: f64, cy: f64) -> Vec<(f64, f64)> {
     pts
 }
 
+const CLEF_CX: f64 = 11.0;
+
+fn bass_clef_points() -> Vec<(f64, f64)> {
+    let mut pts = Vec::with_capacity(512);
+
+    let body_cy = staff_y(24);
+    let body_a = 2.0;
+    let body_b = 2.6;
+    for ix in -22i32..=22 {
+        for iy in -22i32..=22 {
+            let fx = ix as f64 / 22.0;
+            let fy = iy as f64 / 22.0;
+            if fx * fx + fy * fy > 1.0 {
+                continue;
+            }
+            pts.push((CLEF_CX + fx * body_a, body_cy + fy * body_b));
+        }
+    }
+
+    let arc_r = 1.7;
+    let arc_cx = CLEF_CX + 0.3;
+    let arc_cy = body_cy + body_b + 0.2;
+    let arc_samples = 90;
+    for i in 0..arc_samples {
+        let t = i as f64 / (arc_samples - 1) as f64;
+        let angle = -std::f64::consts::PI * 0.5 + t * std::f64::consts::PI * 1.45;
+        let outer = arc_r;
+        let inner = arc_r - 0.35;
+        for r in [inner, (inner + outer) * 0.5, outer] {
+            pts.push((arc_cx + r * angle.cos(), arc_cy + r * angle.sin()));
+        }
+    }
+
+    let dot_x = CLEF_CX + body_a + 1.4;
+    for &dot_cy in &[staff_y(23), staff_y(25)] {
+        for ix in -3i32..=3 {
+            for iy in -3i32..=3 {
+                let fx = ix as f64 * 0.25;
+                let fy = iy as f64 * 0.25;
+                if fx * fx + fy * fy <= 0.45 {
+                    pts.push((dot_x + fx, dot_cy + fy));
+                }
+            }
+        }
+    }
+
+    pts
+}
+
 pub fn render(frame: &mut Frame, app: &App) {
     let area = frame.area();
     match &app.screen {
@@ -316,14 +365,11 @@ fn render_staff(frame: &mut Frame, area: Rect, target: Note) {
                 color: Color::White,
             });
 
-            ctx.print(
-                STAFF_X_START - 6.0,
-                staff_y(24),
-                TextLine::from(Span::styled(
-                    "𝄢",
-                    Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
-                )),
-            );
+            let clef = bass_clef_points();
+            ctx.draw(&Points {
+                coords: &clef,
+                color: Color::Yellow,
+            });
 
             if is_sharp {
                 ctx.print(
